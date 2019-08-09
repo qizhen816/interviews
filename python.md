@@ -1,3 +1,6 @@
+#找工作的一些算法题
+主要来自网络（牛客剑指offer和CSDN）
+
 **快排**
 ```python
 # -*- coding:utf-8 -*-
@@ -318,13 +321,200 @@ class Solution:
         if self.assist:
             return self.assist[-1]
 ```
+**二叉搜索树**
 
+    中序遍历是有序队列
+    左子树小于根 右子树大于根
+**数组中有一个数字出现的次数超过数组长度的一半，请找出这个数字。**
 
+    假设有这个数字，那么它的数量一定比其它所有数字之和还要多，按照这个思路得出num，然后验证
+ ```python
+def MoreThanHalfNum_Solution(numbers):
+    # write code here
+    if not numbers:
+        return 0
+    num = numbers[0]
+    count = 1
+    for i in range(1, len(numbers)):
+        if numbers[i] == num:
+            count += 1
+        else:
+            count -= 1
+        if count == 0:
+            num = numbers[i]
+            count = 1
+    count = 0
+    for i in numbers:
+        if i == num:
+            count += 1
+    return num if count > len(numbers) / 2.0 else 0
+```
+**几个子数组组成的最小数字** 
+    
+    自定义一个比较大小的函数，比较两个字符串s1, s2大小的时候，先将它们拼接起来，比较s1+s2,和s2+s1那个大，如果s1+s2大，那说明s2应该放前面，所以按这个规则，s2就应该排在s1前面。   
+```python
+class Solution:
+    def PrintMinNumber(self, numbers):
+        # write code here
+        if not numbers: return ""
+        numbers = list(map(str, numbers))
+        numbers.sort(cmp=lambda x, y: cmp(x + y, y + x))
+        return "".join(numbers).lstrip('0') or'0'
+```
+**输入两个链表，找出它们的第一个公共结点。**
 
+    对单链表而言，只要有一个公共节点，就代表val和next全部相等，也就必然两个链表结合是"Y"字形，而不是"X"形；所以以栈的思路做这道题。
+    stack1和stack2一起出栈，一直到栈顶不相等为止
+```python
+class Solution:
+    def __init__(self):
+        self.stack1=[]
+        self.stack2=[]
+    def FindFirstCommonNode(self, pHead1, pHead2):
+        # write code here
+        ln1=ListNode(0)
+        if pHead1==None or pHead2==None:
+            return None
+        while pHead1:
+            self.stack1.append(pHead1)
+            pHead1=pHead1.next
+        while pHead2:
+            self.stack2.append(pHead2)
+            pHead2=pHead2.next
+        while self.stack1 and self.stack2 and self.stack1[-1]==self.stack2[-1]:
+            ln1.next=self.stack1.pop()
+            self.stack2.pop()
+        return ln1.next
+```
+**树的深度遍历**
+```python
+class Solution:
+    def TreeDepth(self, pRoot):
+        # write code here
+        # 使用层次遍历
+        # 当树为空直接返回0
+        if pRoot is None:
+            return 0
+        # 方法2：使用递归
+        # 如果该树只有一个结点，它的深度为1.如果根节点只有左子树没有右子树，
+        # 那么树的深度为左子树的深度加1；同样，如果只有右子树没有左子树，
+        # 那么树的深度为右子树的深度加1。如果既有左子树也有右子树，
+        # 那该树的深度就是左子树和右子树的最大值加1.
+        count = max(self.TreeDepth(pRoot.left), self.TreeDepth(pRoot.right)) + 1
+        return count
+```
+**平衡二叉树**
+    
+    平衡二叉树（Balanced Binary Tree），具有以下性质：它是一棵空树或它的左右两个子树的高度差的绝对值不超过1，并且左右两个子树都是一棵平衡二叉树。
+```python
+class Solution:
+    res = True
+    def IsBalanced_Solution(self, pRoot):
+        # write code here
+        self.helper(pRoot)
+        return self.res
+         
+    def helper(self,root):
+        if not root:
+            return 0
+        if not self.res : return 1
+        left = 1 + self.helper(root.left)
+        right = 1 + self.helper(root.right)
+        if abs(left-right)>1:
+            self.res = False
+        return max(left,right)
+```    
+**输入一个递增排序的数组和一个数字S，在数组中查找两个数，使得他们的和正好是S，如果有多对数字的和等于S，输出两个数的乘积最小的。**
 
+    数列满足递增，设两个头尾两个指针i和j，
+    若ai + aj == sum，就是答案（相差越远乘积越小）
+    若ai + aj > sum，aj肯定不是答案之一（前面已得出 i 前面的数已是不可能），j -= 1
+    若ai + aj < sum，ai肯定不是答案之一（前面已得出 j 后面的数已是不可能），i += 1
+    O(n)
+```python
+class Solution:
+    def FindNumbersWithSum(self, array, tsum):
+        for i in array:
+            if tsum-i in array:
+                if tsum-i==i:
+                    if array.count(i)>1:
+                        return [i,i]
+                else:
+                    return [i,tsum-i]
+        return []
+```
+**join函数**
 
+    join()函数
+    语法：  'sep'.join(seq)
+    参数说明
+    sep：分隔符。可以为空
+    seq：要连接的元素序列、字符串、元组、字典
+    上面的语法即：以sep作为分隔符，将seq所有的元素合并成一个新的字符串
+    返回值：返回一个以分隔符sep连接各个元素后生成的字符串
 
+**给定一个数组A[0,1,...,n-1],请构建一个数组B[0,1,...,n-1],其中B中的元素B[i]=A[0]*A[1]*...*A[i-1]*A[i+1]*...*A[n-1]。不能使用除法。**
 
+    解释下代码，设有数组大小为5。
+    对于第一个for循环
+    第一步：b[0] = 1;
+    第二步：b[1] = b[0] * a[0] = a[0]
+    第三步：b[2] = b[1] * a[1] = a[0] * a[1];
+    第四步：b[3] = b[2] * a[2] = a[0] * a[1] * a[2];
+    第五步：b[4] = b[3] * a[3] = a[0] * a[1] * a[2] * a[3];
+    然后对于第二个for循环
+    第一步
+    temp *= a[4] = a[4]; 
+    b[3] = b[3] * temp = a[0] * a[1] * a[2] * a[4];
+    第二步
+    temp *= a[3] = a[4] * a[3];
+    b[2] = b[2] * temp = a[0] * a[1] * a[4] * a[3];
+    第三步
+    temp *= a[2] = a[4] * a[3] * a[2]; 
+    b[1] = b[1] * temp = a[0] * a[4] * a[3] * a[2];
+    第四步
+    temp *= a[1] = a[4] * a[3] * a[2] * a[1]; 
+    b[0] = b[0] * temp = a[4] * a[3] * a[2] * a[1];
+    由此可以看出从b[4]到b[0]均已经得到正确计算。
+```python
+class Solution:
+    def multiply(self, A):
+        # write code here
+        B = []
+        for i in range(len(A)):
+            temp = A[i]
+            b= 1
+            for j in range(len(A)):
+                A[i] = 1
+                b*=A[j]
+            B.append(b)
+            A[i] = temp
+        return B
+```
+**有环链表**
+
+    快慢指针，快指针每次走两步，慢指针每次走一步，有环总会相遇
+```python
+class Solution:
+    def EntryNodeOfLoop(self, pHead):
+        # write code here
+        slow,fast=pHead,pHead
+        while fast and fast.next:
+            slow=slow.next
+            fast=fast.next.next
+            if slow==fast:
+                slow2=pHead
+                while slow!=slow2:
+                    slow=slow.next
+                    slow2=slow2.next
+                return slow
+```
+
+**几个检索的时间复杂度**
+
+    map和multimap都是由RB_tree（红黑树）来实现的，本就合适于查找，复杂度为 O( ln(N) ) 
+    UNordered_set ,unordered_map是由hash_table(哈希表)来实现的，时间复杂度为o(1)
+    deque的push_back, push_front, pop_back, pop_front操作时间复杂度为O(1)
 
 
 
