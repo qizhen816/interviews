@@ -172,6 +172,59 @@ def compute_iou(rec1, rec2):
         return S_cross/(S1+S2-S_cross)
 
 ```
+**静态图框架和动态图框架**
+    
+    PyTorch 和 TensorFlow、Caffe 等框架最大的区别就是他们拥有不同的计算图表现形式。 
+    TensorFlow 使用静态图，这意味着我们先定义计算图，然后不断使用它;
+    而在 PyTorch 中，每次都会重新构建一个新的计算图。他们之间的区别和差异如下:
+    ·动态计算意味着程序将按照我们编写命令的顺序进行执行。
+    这种机制将使得调试更加容易，并且也使得我们将大脑中的想法转化为实际代码变得更加容易。
+    ·而静态计算则意味着程序在编译执行时将先生成神经网络的结构，然后再执行相应操作。
+    静态计算是通过先定义后运行的方式，之后再次运行的时候就不再需要重新构建计算图，所以速度会比动态图更快。
+    从理论上讲，静态计算这样的机制允许编译器进行更大程度的优化，但是这也意味着你所期望的程序与编译器实际执行之间存在着更多的代沟。
+    这也意味着，代码中的错误将更加难以发现
+    （比如，如果计算图的结构出现问题，你可能只有在代码执行到相应操作的时候才能发现它）。
+
+**NMS**
+```python
+#coding:utf-8  
+import numpy as np  
+  
+def py_cpu_nms(dets, thresh):  
+    """Pure Python NMS baseline."""  
+    x1 = dets[:, 0]  
+    y1 = dets[:, 1]  
+    x2 = dets[:, 2]  
+    y2 = dets[:, 3]  
+    scores = dets[:, 4]  #bbox打分
+  
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)  
+#打分从大到小排列，取index  
+    order = scores.argsort()[::-1]  
+#keep为最后保留的边框  
+    keep = []  
+    while order.size > 0:  
+#order[0]是当前分数最大的窗口，肯定保留  
+        i = order[0]  
+        keep.append(i)  
+#计算窗口i与其他所有窗口的交叠部分的面积
+        xx1 = np.maximum(x1[i], x1[order[1:]])  
+        yy1 = np.maximum(y1[i], y1[order[1:]])  
+        xx2 = np.minimum(x2[i], x2[order[1:]])  
+        yy2 = np.minimum(y2[i], y2[order[1:]])  
+  
+        w = np.maximum(0.0, xx2 - xx1 + 1)  
+        h = np.maximum(0.0, yy2 - yy1 + 1)  
+        inter = w * h  
+#交/并得到iou值  
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)  
+#inds为所有与窗口i的iou值小于threshold值的窗口的index，其他窗口此次都被窗口i吸收  
+        inds = np.where(ovr <= thresh)[0]  
+#order里面只保留与窗口i交叠面积小于threshold的那些窗口，由于ovr长度比order长度少1(不包含i)，所以inds+1对应到保留的窗口
+        order = order[inds + 1]  
+  
+    return keep
+```
 
 
 **SVM LDA**
