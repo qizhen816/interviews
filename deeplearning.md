@@ -151,8 +151,8 @@
 **卷积计算量**
     
     给定一个卷积层 C in * C out * H k * W k  (H k * W k 为 kernel shape), output feature  map shape 为 H * W，
-    其 FLOPs 为C in * (2 * H k * W k + 1) * C out * H * W，参数量为 (C in * H k * W k + 1) * C out (1 乘累加 = 2 FLOPs)    
-    如果通过3x3x3的卷积核那么每通道每次乘法为3x3次，加法3x3-1次（9个数加8次），通道累计Cin-1次
+    其 FLOPs 为C in * (2 * H k * W k ) * C out * H * W，参数量为 (C in * H k * W k + 1) * C out (1 乘累加 = 2 FLOPs)    
+    如果通过3x3x3的卷积核那么每通道每次乘法为3x3次，加法3x3-1次（9个数加8次），通道累加Cin-1次，bias加1次
 ![Conv](卷积核1.png)
 
 **卷积之后的尺寸**
