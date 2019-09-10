@@ -161,6 +161,149 @@
     （W - F + 2P）/ S + 1
     其中，W是输入尺寸，F是卷积核大小，P是填充尺寸，S是步长
 
+**Faster-RCNN BBox计算**
+
+```python
+import numpy as xp
+
+def loc2bbox(src_bbox, loc):
+    """Decode bounding boxes from bounding box offsets and scales.
+
+    Given bounding box offsets and scales computed by
+    :meth:`bbox2loc`, this function decodes the representation to
+    coordinates in 2D image coordinates.
+
+    Given scales and offsets :math:`t_y, t_x, t_h, t_w` and a bounding
+    box whose center is :math:`(y, x) = p_y, p_x` and size :math:`p_h, p_w`,
+    the decoded bounding box's center :math:`\\hat{g}_y`, :math:`\\hat{g}_x`
+    and size :math:`\\hat{g}_h`, :math:`\\hat{g}_w` are calculated
+    by the following formulas.
+
+    * :math:`\\hat{g}_y = p_h t_y + p_y`
+    * :math:`\\hat{g}_x = p_w t_x + p_x`
+    * :math:`\\hat{g}_h = p_h \\exp(t_h)`
+    * :math:`\\hat{g}_w = p_w \\exp(t_w)`
+
+    The decoding formulas are used in works such as R-CNN [#]_.
+
+    The output is same type as the type of the inputs.
+
+    .. [#] Ross Girshick, Jeff Donahue, Trevor Darrell, Jitendra Malik. \
+    Rich feature hierarchies for accurate object detection and semantic \
+    segmentation. CVPR 2014.
+
+    Args:
+        src_bbox (array): A coordinates of bounding boxes.
+            Its shape is :math:`(R, 4)`. These coordinates are
+            :math:`p_{ymin}, p_{xmin}, p_{ymax}, p_{xmax}`.
+        loc (array): An array with offsets and scales.
+            The shapes of :obj:`src_bbox` and :obj:`loc` should be same.
+            This contains values :math:`t_y, t_x, t_h, t_w`.
+
+    Returns:
+        array:
+        Decoded bounding box coordinates. Its shape is :math:`(R, 4)`. \
+        The second axis contains four values \
+        :math:`\\hat{g}_{ymin}, \\hat{g}_{xmin},
+        \\hat{g}_{ymax}, \\hat{g}_{xmax}`.
+
+    """
+
+    if src_bbox.shape[0] == 0:
+        return xp.zeros((0, 4), dtype=loc.dtype)
+
+    src_bbox = src_bbox.astype(src_bbox.dtype, copy=False)
+
+    src_height = src_bbox[:, 2] - src_bbox[:, 0]
+    src_width = src_bbox[:, 3] - src_bbox[:, 1]
+    src_ctr_y = src_bbox[:, 0] + 0.5 * src_height
+    src_ctr_x = src_bbox[:, 1] + 0.5 * src_width
+
+    dy = loc[:, 0::4]
+    dx = loc[:, 1::4]
+    dh = loc[:, 2::4]
+    dw = loc[:, 3::4]
+
+    ctr_y = dy * src_height[:, xp.newaxis] + src_ctr_y[:, xp.newaxis]
+    ctr_x = dx * src_width[:, xp.newaxis] + src_ctr_x[:, xp.newaxis]
+    h = xp.exp(dh) * src_height[:, xp.newaxis]
+    w = xp.exp(dw) * src_width[:, xp.newaxis]
+
+    dst_bbox = xp.zeros(loc.shape, dtype=loc.dtype)
+    dst_bbox[:, 0::4] = ctr_y - 0.5 * h
+    dst_bbox[:, 1::4] = ctr_x - 0.5 * w
+    dst_bbox[:, 2::4] = ctr_y + 0.5 * h
+    dst_bbox[:, 3::4] = ctr_x + 0.5 * w
+
+    return dst_bbox
+
+
+def bbox2loc(src_bbox, dst_bbox):
+    """Encodes the source and the destination bounding boxes to "loc".
+
+    Given bounding boxes, this function computes offsets and scales
+    to match the source bounding boxes to the target bounding boxes.
+    Mathematcially, given a bounding box whose center is
+    :math:`(y, x) = p_y, p_x` and
+    size :math:`p_h, p_w` and the target bounding box whose center is
+    :math:`g_y, g_x` and size :math:`g_h, g_w`, the offsets and scales
+    :math:`t_y, t_x, t_h, t_w` can be computed by the following formulas.
+
+    * :math:`t_y = \\frac{(g_y - p_y)} {p_h}`
+    * :math:`t_x = \\frac{(g_x - p_x)} {p_w}`
+    * :math:`t_h = \\log(\\frac{g_h} {p_h})`
+    * :math:`t_w = \\log(\\frac{g_w} {p_w})`
+
+    The output is same type as the type of the inputs.
+    The encoding formulas are used in works such as R-CNN [#]_.
+
+    .. [#] Ross Girshick, Jeff Donahue, Trevor Darrell, Jitendra Malik. \
+    Rich feature hierarchies for accurate object detection and semantic \
+    segmentation. CVPR 2014.
+
+    Args:
+        src_bbox (array): An image coordinate array whose shape is
+            :math:`(R, 4)`. :math:`R` is the number of bounding boxes.
+            These coordinates are
+            :math:`p_{ymin}, p_{xmin}, p_{ymax}, p_{xmax}`.
+        dst_bbox (array): An image coordinate array whose shape is
+            :math:`(R, 4)`.
+            These coordinates are
+            :math:`g_{ymin}, g_{xmin}, g_{ymax}, g_{xmax}`.
+
+    Returns:
+        array:
+        Bounding box offsets and scales from :obj:`src_bbox` \
+        to :obj:`dst_bbox`. \
+        This has shape :math:`(R, 4)`.
+        The second axis contains four values :math:`t_y, t_x, t_h, t_w`.
+
+    """
+
+    height = src_bbox[:, 2] - src_bbox[:, 0]
+    width = src_bbox[:, 3] - src_bbox[:, 1]
+    ctr_y = src_bbox[:, 0] + 0.5 * height
+    ctr_x = src_bbox[:, 1] + 0.5 * width
+
+    base_height = dst_bbox[:, 2] - dst_bbox[:, 0]
+    base_width = dst_bbox[:, 3] - dst_bbox[:, 1]
+    base_ctr_y = dst_bbox[:, 0] + 0.5 * base_height
+    base_ctr_x = dst_bbox[:, 1] + 0.5 * base_width
+
+    eps = xp.finfo(height.dtype).eps
+    height = xp.maximum(height, eps)
+    width = xp.maximum(width, eps)
+
+    dy = (base_ctr_y - ctr_y) / height
+    dx = (base_ctr_x - ctr_x) / width
+    dh = xp.log(base_height / height)
+    dw = xp.log(base_width / width)
+
+    loc = xp.vstack((dy, dx, dh, dw)).transpose()
+    return loc
+
+```
+
 **IOU计算**
 ```python
 
@@ -254,15 +397,15 @@ def py_cpu_nms(dets, thresh):
 值得注意的是，在具体的算法操作上，ROI Align并不是简单地补充出候选区域边界上的坐标点，
 然后将这些坐标点进行池化，而是重新设计了一套比较优雅的流程：
 ![Roi Align](ROIPool2.png)
-1)Conv layers使用的是VGG16，feat_stride=32(即表示，经过网络层后图片缩小为原图的1/32),原图800*800,最后一层特征图feature map大小:25*25
+1)Conv layers使用的是VGG16，feat_stride=32(即表示，经过网络层后图片缩小为原图的1/32),原图800x800,最后一层特征图feature map大小:25x25
 
-2)假定原图中有一region proposal，大小为665*665，这样，映射到特征图中的大小：665/32=20.78,即20.78*20.78，此时，没有像RoiPooling那样就行取整操作，保留浮点数
+2)假定原图中有一region proposal，大小为665x665，这样，映射到特征图中的大小：665/32=20.78,即20.78x20.78，此时，没有像RoiPooling那样就行取整操作，保留浮点数
 
-3)假定pooled_w=7,pooled_h=7,即pooling后固定成7*7大小的特征图，所以，将在 feature map上映射的20.78*20.78的region proposal 划分成49个同等大小的小区域，每个小区域的大小20.78/7=2.97,即2.97*2.97
+3)假定pooled_w=7,pooled_h=7,即pooling后固定成7x7大小的特征图，所以，将在 feature map上映射的20.78x20.78的region proposal 划分成49个同等大小的小区域，每个小区域的大小20.78/7=2.97,即2.97x2.97
 
-4)假定采样点数为4，即表示，对于每个2.97*2.97的小区域，平分四份，每一份取其中心点位置，而中心点位置的像素，采用双线性插值法进行计算，这样，就会得到四个点的像素值
+4)假定采样点数为4，即表示，对于每个2.97x2.97的小区域，平分四份，每一份取其中心点位置，而中心点位置的像素，采用双线性插值法进行计算，这样，就会得到四个点的像素值
 
- 最后，取四个像素值中最大值作为这个小区域(即：2.97*2.97大小的区域)的像素值，如此类推，同样是49个小区域得到49个像素值，组成7*7大小的feature map
+ 最后，取四个像素值中最大值作为这个小区域(即：2.97x2.97大小的区域)的像素值，如此类推，同样是49个小区域得到49个像素值，组成7x7大小的feature map
  
 **双线性差值**
 
